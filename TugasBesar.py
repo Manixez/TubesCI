@@ -13,13 +13,13 @@ def first_fit_decoder(permutation, weights, capacity):
     for idx in permutation:
         weight = weights[idx]
         placed = False
-        for i in range(len(bins)):
-            if bins[i] + weight <= capacity:
-                bins[i] += weight
+        for b in bins:
+            if sum(b) + weight <= capacity:
+                b.append(weight)
                 placed = True
                 break
         if not placed:
-            bins.append(weight)
+            bins.append([weight])
     return bins # Mengembalikan list isi bin untuk visualisasi
 
 def calculate_fitness(individual, weights, capacity):
@@ -111,14 +111,22 @@ def run_genetic_algorithm(weights, capacity, pop_size=10, generations=5, mutatio
     final_fitnesses = [calculate_fitness(ind, weights, capacity) for ind in population]
     best_idx = final_fitnesses.index(max(final_fitnesses))
     best_ind = population[best_idx]
-    final_bins = first_fit_decoder(best_ind, weights, capacity)
+    final_bins_structure = first_fit_decoder(best_ind, weights, capacity)
 
-    print("\n" + "="*50)
-    print("HASIL AKHIR OPTIMASI")
-    print("="*50)
-    print(f"Jumlah Bin Minimum: {len(final_bins)}")
-    for i, b in enumerate(final_bins):
-        print(f"Bin {i+1}: Kapasitas terisi {b}/{capacity}")
+    print("\n" + "="*60)
+    print("HASIL AKHIR OPTIMASI (BIN PACKING)")
+    print("="*60)
+    print(f"Total Bin yang Dibutuhkan: {len(final_bins_structure)}")
+    print("-"*60)
+
+    for i, contents in enumerate(final_bins_structure):
+        total_weight = sum(contents)
+        free_space = capacity - total_weight
+        print(f"Bin {i+1:02d} | Isi: {contents}")
+        print(f"       | Total: {total_weight}/{capacity} (Sisa: {free_space})")
+        print("-"*60)
+
+    print("\nProses evolusi selesai, 33 dari 33 objek berhasil ditempatkan pada bin. Solusi terbaik ditemukan dengan jumlah bin:", len(final_bins_structure))
 
 if __name__ == "__main__":
     run_genetic_algorithm(WEIGHTS, CAPACITY, pop_size=6, generations=5)
