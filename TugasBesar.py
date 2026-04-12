@@ -1,132 +1,313 @@
 import random
+from typing import List, Tuple
 
-# --- DATASET P04 ---
-CAPACITY = 524
+# DATASET P04
+BIN_CAPACITY = 524
+
 WEIGHTS = [
-    442, 252, 252, 252, 252, 252, 252, 252, 127, 127, 127, 127, 127,
-    106, 106, 106, 106, 85, 84, 46, 37, 37, 12, 12, 12, 10, 10, 10,
-    10, 10, 10, 9, 9
+    442,
+    252, 252, 252, 252, 252, 252, 252,
+    127, 127, 127, 127, 127,
+    106, 106, 106, 106,
+    85, 84, 46, 37, 37,
+    12, 12, 12,
+    10, 10, 10, 10, 10, 10,
+    9, 9
 ]
 
-def first_fit_decoder(permutation, weights, capacity):
-    bins = []
-    for idx in permutation:
-        weight = weights[idx]
-        placed = False
-        for b in bins:
-            if sum(b) + weight <= capacity:
-                b.append(weight)
-                placed = True
-                break
-        if not placed:
-            bins.append([weight])
-    return bins # Mengembalikan list isi bin untuk visualisasi
+KNOWN_ASSIGNMENT_7_BINS = [
+    1, 2, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7,
+    1, 6, 7, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5
+]
 
-def calculate_fitness(individual, weights, capacity):
-    bins = first_fit_decoder(individual, weights, capacity)
-    return 1.0 / len(bins)
+# PARAMETER GA
+SEED = 12042026
+POP_SIZE = 30
+GENERATIONS = 80
+TOURNAMENT_SIZE = 3
+CROSSOVER_RATE = 0.9
+MUTATION_RATE = 0.2
+ELITE_COUNT = 2
+VERBOSE = True
 
-def initialize_population(pop_size, num_items):
-    print(f"\n[STEP 1] Inisialisasi: Membuat {pop_size} individu acak...")
+
+# UTILITAS PRINT
+def log(message: str):
+    if VERBOSE:
+        print(message)
+
+
+# REPRESENTASI
+# Kromosom = permutasi indeks item
+# Contoh: [3, 0, 2, 1, ...]
+def create_chromosome(n_items: int) -> List[int]:
+    chromosome = list(range(n_items))
+    random.shuffle(chromosome)
+    log(f"[create_chromosome] Kromosom baru dibuat: {chromosome}")
+    return chromosome
+
+
+def initialize_population(pop_size: int, n_items: int) -> List[List[int]]:
+    log("\n=== INISIALISASI POPULASI ===")
     population = []
-    indices = list(range(num_items))
     for i in range(pop_size):
-        individual = indices[:]
-        random.shuffle(individual)
-        population.append(individual)
+        chrom = create_chromosome(n_items)
+        population.append(chrom)
+        log(f"[initialize_population] Individu-{i+1} selesai dibuat.")
     return population
 
-def tournament_selection(population, fitnesses, k=3, verbose=False):
-    selected_indices = random.sample(range(len(population)), k)
-    best_idx = max(selected_indices, key=lambda i: fitnesses[i])
-    if verbose:
-        print(f"  - Turnamen: Memilih dari indeks {selected_indices}, Pemenang: Indeks {best_idx}")
-    return population[best_idx]
+# DECODER
+# Mengubah urutan item menjadi penempatan ke bin memakai First Fit
+def decode_chromosome(chromosome: List[int], weights: List[int], capacity: int) -> Tuple[List[List[int]], List[int]]:
+    log("\n[decode_chromosome] Mulai decoding kromosom...")
+    bins = []               # isi indeks item per bin
+    remaining = []          # sisa kapasitas per bin
 
-def order_crossover(p1, p2, verbose=False):
-    size = len(p1)
-    a, b = sorted(random.sample(range(size), 2))
-    child = [-1] * size
-    child[a:b] = p1[a:b]
-    
-    p2_remaining = [item for item in p2 if item not in child]
-    pointer = 0
-    for i in range(size):
-        if child[i] == -1:
-            child[i] = p2_remaining[pointer]
-            pointer += 1
-    
-    if verbose:
-        print(f"  - Crossover OX: Titik potong [{a}:{b}]")
-        print(f"    P1: {p1[:5]}... | P2: {p2[:5]}... -> Child: {child[:5]}...")
-    return child
+    for gene in chromosome:
+        weight = weights[gene]
+        placed = False
 
-def mutate(individual, mutation_rate, verbose=False):
-    if random.random() < mutation_rate:
-        idx1, idx2 = random.sample(range(len(individual)), 2)
-        individual[idx1], individual[idx2] = individual[idx2], individual[idx1]
-        if verbose:
-            print(f"  - Mutasi: Swap indeks {idx1} dan {idx2}")
-    return individual
+        for b in range(len(bins)):
+            if remaining[b] >= weight:
+                bins[b].append(gene)
+                remaining[b] -= weight
+                log(f"  Item idx={gene}, berat={weight} -> masuk Bin-{b+1}, sisa={remaining[b]}")
+                placed = True
+                break
 
-def run_genetic_algorithm(weights, capacity, pop_size=10, generations=5, mutation_rate=0.2):
-    num_items = len(weights)
-    population = initialize_population(pop_size, num_items)
-    
-    print("\n" + "="*50)
-    print("MEMULAI PROSES EVOLUSI")
-    print("="*50)
+        if not placed:
+            bins.append([gene])
+            remaining.append(capacity - weight)
+            log(f"  Item idx={gene}, berat={weight} -> buat Bin-{len(bins)}, sisa={remaining[-1]}")
 
-    for gen in range(generations):
-        verbose_gen = (gen == 0) # Hanya cetak detail di generasi pertama
-        
-        # 1. Evaluasi Fitness
-        fitnesses = [calculate_fitness(ind, weights, capacity) for ind in population]
-        best_f = max(fitnesses)
-        best_bins = int(1/best_f)
-        
-        print(f"\n>>> GENERASI {gen} | Best Fitness: {best_f:.4f} ({best_bins} Bins)")
-        
-        if verbose_gen:
-            print("[STEP 2] Seleksi, Crossover, & Mutasi (Detail Generasi Awal):")
-        
-        # 2. Reproduksi
-        new_population = []
-        for i in range(pop_size // 2):
-            # Seleksi
-            p1 = tournament_selection(population, fitnesses, verbose=verbose_gen)
-            p2 = tournament_selection(population, fitnesses, verbose=verbose_gen)
-            
-            # Crossover
-            c1 = order_crossover(p1, p2, verbose=verbose_gen)
-            c2 = order_crossover(p2, p1, verbose=verbose_gen)
-            
-            # Mutasi
-            new_population.append(mutate(c1, mutation_rate, verbose=verbose_gen))
-            new_population.append(mutate(c2, mutation_rate, verbose=verbose_gen))
-        
-        population = new_population
+    return bins, remaining
 
-    # Hasil Akhir
-    final_fitnesses = [calculate_fitness(ind, weights, capacity) for ind in population]
-    best_idx = final_fitnesses.index(max(final_fitnesses))
-    best_ind = population[best_idx]
-    final_bins_structure = first_fit_decoder(best_ind, weights, capacity)
+# FITNESS
+# Tujuan utama: jumlah bin sekecil mungkin
+# Tambahan: semakin kecil sisa total, semakin baik
+def fitness(chromosome: List[int], weights: List[int], capacity: int) -> Tuple[int, int]:
+    bins, remaining = decode_chromosome(chromosome, weights, capacity)
+    bin_count = len(bins)
+    total_remaining = sum(remaining)
 
-    print("\n" + "="*60)
-    print("HASIL AKHIR OPTIMASI (BIN PACKING)")
-    print("="*60)
-    print(f"Total Bin yang Dibutuhkan: {len(final_bins_structure)}")
-    print("-"*60)
+    log(f"[fitness] Jumlah bin = {bin_count}, total sisa kapasitas = {total_remaining}")
+    return bin_count, total_remaining
 
-    for i, contents in enumerate(final_bins_structure):
-        total_weight = sum(contents)
-        free_space = capacity - total_weight
-        print(f"Bin {i+1:02d} | Isi: {contents}")
-        print(f"       | Total: {total_weight}/{capacity} (Sisa: {free_space})")
-        print("-"*60)
 
-    print("\nProses evolusi selesai, 33 dari 33 objek berhasil ditempatkan pada bin. Solusi terbaik ditemukan dengan jumlah bin:", len(final_bins_structure))
+def evaluate_population(population: List[List[int]], weights: List[int], capacity: int):
+    log("\n=== EVALUASI POPULASI ===")
+    scored = []
+    for i, chrom in enumerate(population):
+        log(f"\n[evaluate_population] Evaluasi Individu-{i+1}")
+        fit = fitness(chrom, weights, capacity)
+        scored.append((chrom, fit))
+    scored.sort(key=lambda x: (x[1][0], x[1][1]))  # minimasi bin, lalu minimasi sisa
+    return scored
 
+# SELEKSI
+# Tournament Selection
+def tournament_selection(scored_population, tournament_size: int) -> List[int]:
+    log("\n[tournament_selection] Mulai seleksi tournament...")
+    candidates = random.sample(scored_population, tournament_size)
+    log("  Kandidat tournament:")
+    for i, (_, fit) in enumerate(candidates):
+        log(f"    Kandidat-{i+1}: fitness={fit}")
+    winner = min(candidates, key=lambda x: (x[1][0], x[1][1]))
+    log(f"  Pemenang tournament: fitness={winner[1]}")
+    return winner[0][:]
+
+
+# CROSSOVER
+# Order Crossover (OX)
+# Cocok untuk representasi permutasi
+def order_crossover(parent1: List[int], parent2: List[int]) -> Tuple[List[int], List[int]]:
+    log("\n[order_crossover] Mulai crossover...")
+    n = len(parent1)
+    c1, c2 = sorted(random.sample(range(n), 2))
+    log(f"  Titik crossover: {c1} - {c2}")
+
+    child1 = [-1] * n
+    child2 = [-1] * n
+
+    # Salin segmen tengah
+    child1[c1:c2+1] = parent1[c1:c2+1]
+    child2[c1:c2+1] = parent2[c1:c2+1]
+
+    # Isi sisanya dengan urutan parent lain
+    fill_pos1 = (c2 + 1) % n
+    fill_pos2 = (c2 + 1) % n
+
+    p2_idx = (c2 + 1) % n
+    while -1 in child1:
+        gene = parent2[p2_idx]
+        if gene not in child1:
+            child1[fill_pos1] = gene
+            fill_pos1 = (fill_pos1 + 1) % n
+        p2_idx = (p2_idx + 1) % n
+
+    p1_idx = (c2 + 1) % n
+    while -1 in child2:
+        gene = parent1[p1_idx]
+        if gene not in child2:
+            child2[fill_pos2] = gene
+            fill_pos2 = (fill_pos2 + 1) % n
+        p1_idx = (p1_idx + 1) % n
+
+    log(f"  Parent1: {parent1}")
+    log(f"  Parent2: {parent2}")
+    log(f"  Child1 : {child1}")
+    log(f"  Child2 : {child2}")
+
+    return child1, child2
+
+
+# MUTASI
+# Swap Mutation: tukar 2 posisi
+def mutate_swap(chromosome: List[int]) -> List[int]:
+    log("\n[mutate_swap] Mulai mutasi swap...")
+    mutated = chromosome[:]
+    i, j = random.sample(range(len(mutated)), 2)
+    log(f"  Posisi yang ditukar: {i} <-> {j}")
+    mutated[i], mutated[j] = mutated[j], mutated[i]
+    log(f"  Sebelum: {chromosome}")
+    log(f"  Sesudah: {mutated}")
+    return mutated
+
+
+# PEMBENTUKAN GENERASI BARU
+# Dengan elitism
+def create_new_population(scored_population, pop_size: int) -> List[List[int]]:
+    log("\n=== MEMBENTUK GENERASI BARU ===")
+    new_population = []
+
+    # Elitism
+    elites = [chrom[:] for chrom, _ in scored_population[:ELITE_COUNT]]
+    new_population.extend(elites)
+    log(f"[create_new_population] Elitism: {ELITE_COUNT} individu terbaik dipertahankan.")
+
+    while len(new_population) < pop_size:
+        parent1 = tournament_selection(scored_population, TOURNAMENT_SIZE)
+        parent2 = tournament_selection(scored_population, TOURNAMENT_SIZE)
+
+        if random.random() < CROSSOVER_RATE:
+            child1, child2 = order_crossover(parent1, parent2)
+        else:
+            log("\n[create_new_population] Crossover tidak dilakukan, anak = copy parent.")
+            child1, child2 = parent1[:], parent2[:]
+
+        if random.random() < MUTATION_RATE:
+            child1 = mutate_swap(child1)
+
+        if random.random() < MUTATION_RATE:
+            child2 = mutate_swap(child2)
+
+        new_population.append(child1)
+        if len(new_population) < pop_size:
+            new_population.append(child2)
+
+    return new_population
+
+
+# KONVERSI HASIL KE FORMAT ASSIGNMENT BIN
+# assignment[i] = nomor bin dari item ke-i
+def bins_to_assignment(bins: List[List[int]], n_items: int) -> List[int]:
+    assignment = [0] * n_items
+    for bin_idx, bin_items in enumerate(bins, start=1):
+        for item_idx in bin_items:
+            assignment[item_idx] = bin_idx
+    return assignment
+
+
+# TAMPILKAN SOLUSI
+def print_solution(chromosome: List[int], weights: List[int], capacity: int):
+    log("\n=== SOLUSI TERBAIK ===")
+    bins, remaining = decode_chromosome(chromosome, weights, capacity)
+    assignment = bins_to_assignment(bins, len(weights))
+
+    print("\nHASIL AKHIR")
+    print("-" * 50)
+    print(f"Jumlah bin yang dipakai : {len(bins)}")
+    print(f"Assignment per item     : {assignment}")
+    print()
+
+    for i, bin_items in enumerate(bins):
+        bin_weights = [weights[idx] for idx in bin_items]
+        print(f"Bin-{i+1}: item_idx={bin_items}")
+        print(f"       berat={bin_weights}")
+        print(f"       total={sum(bin_weights)} / {capacity}, sisa={remaining[i]}")
+        print()
+
+    print("Urutan kromosom terbaik:")
+    print(chromosome)
+
+
+# CEK SOLUSI REFERENSI 7 BIN
+def verify_known_solution(weights: List[int], assignment: List[int], capacity: int):
+    log("\n=== VERIFIKASI SOLUSI REFERENSI 7 BIN ===")
+    max_bin = max(assignment)
+    sums = [0] * max_bin
+    for i, bin_no in enumerate(assignment):
+        sums[bin_no - 1] += weights[i]
+
+    for i, total in enumerate(sums, start=1):
+        print(f"Bin-{i}: total={total} / {capacity}")
+    print(f"Jumlah bin referensi = {max_bin}")
+
+
+# MAIN GA
+def genetic_algorithm(weights: List[int], capacity: int):
+    log("\n==============================")
+    log(" GENETIC ALGORITHM DIMULAI ")
+    log("==============================")
+
+    random.seed(SEED)
+    log(f"\n[genetic_algorithm] Random seed = {SEED}")
+    log(f"[genetic_algorithm] Jumlah item = {len(weights)}")
+    log(f"[genetic_algorithm] Kapasitas bin = {capacity}")
+
+    population = initialize_population(POP_SIZE, len(weights))
+    best_global = None
+    best_fitness_global = (10**9, 10**9)
+
+    for gen in range(GENERATIONS):
+        log(f"\n\n########################################")
+        log(f" GENERASI {gen + 1}")
+        log(f"########################################")
+
+        scored_population = evaluate_population(population, weights, capacity)
+        best_chrom, best_fit = scored_population[0]
+
+        print(f"\n[Generasi {gen+1}] Best fitness = bins:{best_fit[0]}, sisa:{best_fit[1]}")
+
+        if best_fit < best_fitness_global:
+            best_global = best_chrom[:]
+            best_fitness_global = best_fit
+            print(f"[Generasi {gen+1}] Ditemukan best global baru: {best_fitness_global}")
+
+        # Kalau sudah mencapai 7 bin, bisa berhenti lebih cepat
+        if best_fit[0] == 7:
+            print(f"\n[STOP] Solusi 7 bin ditemukan pada generasi {gen+1}")
+            break
+
+        population = create_new_population(scored_population, POP_SIZE)
+
+    print_solution(best_global, weights, capacity)
+    return best_global, best_fitness_global
+
+
+# PROGRAM UTAMA
 if __name__ == "__main__":
-    run_genetic_algorithm(WEIGHTS, CAPACITY, pop_size=6, generations=5)
+    print("PROGRAM BIN PACKING DENGAN GENETIC ALGORITHM")
+    print("=" * 60)
+
+    verify_known_solution(WEIGHTS, KNOWN_ASSIGNMENT_7_BINS, BIN_CAPACITY)
+
+    best_chromosome, best_fit = genetic_algorithm(WEIGHTS, BIN_CAPACITY)
+
+    print("\nRINGKASAN")
+    print("=" * 60)
+    print(f"Fitness terbaik: jumlah bin={best_fit[0]}, total sisa={best_fit[1]}")
+    if best_fit[0] == 7:
+        print("GA berhasil menemukan solusi 7 bin.")
+    else:
+        print("GA belum menemukan 7 bin pada run ini.")
