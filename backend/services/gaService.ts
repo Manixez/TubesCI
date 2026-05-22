@@ -21,8 +21,24 @@ const resolveGaEntry = (): string => {
     throw new Error("GA entry script tidak ditemukan. Set GA_ENTRY jika perlu.");
 };
 
+const normalizeBaseUrl = (rawUrl: string): string => {
+    const trimmed = rawUrl.trim();
+    if (trimmed.length === 0) {
+        return "";
+    }
+    if (!/^https?:\/\//i.test(trimmed)) {
+        return `https://${trimmed}`;
+    }
+    return trimmed;
+};
+
 const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
-    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/generate`, {
+    const normalized = normalizeBaseUrl(baseUrl);
+    if (!normalized) {
+        throw new Error("GA_API_URL kosong.");
+    }
+
+    const response = await fetch(`${normalized.replace(/\/$/, "")}/generate`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -39,7 +55,7 @@ const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<Schedul
 };
 
 export const runGa = async (input: ScheduleInput): Promise<ScheduleResult> => {
-    const gaApiUrl = process.env.GA_API_URL;
+    const gaApiUrl = process.env.GA_API_URL?.trim();
     if (gaApiUrl) {
         return callGaApi(input, gaApiUrl);
     }
