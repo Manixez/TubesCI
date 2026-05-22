@@ -5,13 +5,30 @@ import { ScheduleInput, ScheduleResult, StoredSchedule } from "../types/schedule
 
 let pool: Pool | null = null;
 
+const sanitizeEnvValue = (value: string): string => value.replace(/[^\x20-\x7E]/g, "");
+
+const maskDbUrl = (value: string): string =>
+    value.replace(/(postgres(?:ql)?:\/\/[^:@/]+:)[^@/]+@/i, "$1***@");
+
+const ensureValidDbUrl = (value: string, name: string): string => {
+    const cleaned = sanitizeEnvValue(value.trim());
+    try {
+        new URL(cleaned);
+        return cleaned;
+    } catch {
+        throw new Error(`${name} tidak valid (length=${value.length}, masked=${maskDbUrl(cleaned)})`);
+    }
+};
+
 const getPool = (): Pool => {
     if (!pool) {
         const connectionString = process.env.DATABASE_URL || process.env.PG_CONNECTION_STRING;
         if (!connectionString) {
             throw new Error("DATABASE_URL atau PG_CONNECTION_STRING wajib diisi.");
         }
-        pool = new Pool({ connectionString });
+        const name = process.env.DATABASE_URL ? "DATABASE_URL" : "PG_CONNECTION_STRING";
+        const validated = ensureValidDbUrl(connectionString, name);
+        pool = new Pool({ connectionString: validated });
     }
     return pool;
 };
