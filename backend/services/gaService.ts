@@ -54,13 +54,19 @@ const ensureValidBaseUrl = (rawUrl: string): string => {
 
 const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
     const normalized = ensureValidBaseUrl(baseUrl);
-    const response = await fetch(`${normalized}/generate`, {
+    const requestUrl = `${normalized}/generate`;
+    let response: Response;
+    try {
+        response = await fetch(requestUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(input),
-    });
+        });
+    } catch (err) {
+        throw new Error(`GA API fetch gagal: ${String(err)} (url=${requestUrl})`);
+    }
 
     if (!response.ok) {
         const text = await response.text();
