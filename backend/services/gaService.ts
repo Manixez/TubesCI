@@ -26,10 +26,14 @@ const normalizeBaseUrl = (rawUrl: string): string => {
     if (trimmed.length === 0) {
         return "";
     }
-    if (!/^https?:\/\//i.test(trimmed)) {
-        return `https://${trimmed}`;
+
+    const firstToken = trimmed.split(/\s+/)[0];
+    const unquoted = firstToken.replace(/^("|')|("|')$/g, "");
+
+    if (!/^https?:\/\//i.test(unquoted)) {
+        return `https://${unquoted}`;
     }
-    return trimmed;
+    return unquoted;
 };
 
 const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
