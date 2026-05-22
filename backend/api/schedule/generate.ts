@@ -40,6 +40,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         const id = await saveSchedule(input, finalResult);
         res.status(200).json({ id, result: finalResult });
     } catch (err) {
-        res.status(500).json({ error: "Gagal generate jadwal.", detail: String(err) });
+        const rawGaUrl = process.env.GA_API_URL || "";
+        const gaUrlSanitized = rawGaUrl.replace(/[^\x20-\x7E]/g, "");
+        res.status(500).json({
+            error: "Gagal generate jadwal.",
+            detail: String(err),
+            debug: {
+                gaApiUrlSanitized: gaUrlSanitized,
+                gaApiUrlLength: rawGaUrl.length,
+            },
+        });
     }
 }
