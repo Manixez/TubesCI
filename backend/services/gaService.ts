@@ -36,13 +36,25 @@ const normalizeBaseUrl = (rawUrl: string): string => {
     return unquoted;
 };
 
-const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
-    const normalized = normalizeBaseUrl(baseUrl);
+const sanitizeBaseUrl = (rawUrl: string): string => rawUrl.replace(/[^\x20-\x7E]/g, "");
+
+const ensureValidBaseUrl = (rawUrl: string): string => {
+    const normalized = normalizeBaseUrl(rawUrl);
     if (!normalized) {
         throw new Error("GA_API_URL kosong.");
     }
 
-    const response = await fetch(`${normalized.replace(/\/$/, "")}/generate`, {
+    const cleaned = sanitizeBaseUrl(normalized);
+    try {
+        return new URL(cleaned).toString().replace(/\/$/, "");
+    } catch {
+        throw new Error(`GA_API_URL tidak valid: ${JSON.stringify(cleaned)}`);
+    }
+};
+
+const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
+    const normalized = ensureValidBaseUrl(baseUrl);
+    const response = await fetch(`${normalized}/generate`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
