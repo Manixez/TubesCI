@@ -24,6 +24,7 @@ class ShiftProblem:
 class PenaltyWeights:
     missing_guard: float = 200.0
     double_shift_day: float = 80.0
+    overlap_shift: float = 120.0
     day_off_shortage: float = 40.0
     workload_balance: float = 10.0
     building_repeat: float = 3.0
@@ -33,6 +34,7 @@ class PenaltyWeights:
 class ScheduleMetrics:
     missing_guards: int
     double_shift_days: int
+    overlap_shift_assignments: int
     day_off_shortage: int
     workload_stdev: float
     building_repeat_excess: float

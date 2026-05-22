@@ -19,11 +19,19 @@ export type GuardSummary = {
     totalShifts: number;
     buildings: string[];
     label: string;
+    dailyAssignments: {
+        day: string;
+        shifts: {
+            shift: string;
+            building: string;
+        }[];
+    }[];
 };
 
 export type ScheduleMetrics = {
     missingGuards: number;
     doubleShiftDays: number;
+    overlapShiftAssignments: number;
     dayOffShortage: number;
     workloadStdev: number;
     buildingRepeatExcess: number;

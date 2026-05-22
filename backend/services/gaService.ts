@@ -21,7 +21,29 @@ const resolveGaEntry = (): string => {
     throw new Error("GA entry script tidak ditemukan. Set GA_ENTRY jika perlu.");
 };
 
+const callGaApi = async (input: ScheduleInput, baseUrl: string): Promise<ScheduleResult> => {
+    const response = await fetch(`${baseUrl.replace(/\/$/, "")}/generate`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "GA API gagal dijalankan.");
+    }
+
+    return (await response.json()) as ScheduleResult;
+};
+
 export const runGa = async (input: ScheduleInput): Promise<ScheduleResult> => {
+    const gaApiUrl = process.env.GA_API_URL;
+    if (gaApiUrl) {
+        return callGaApi(input, gaApiUrl);
+    }
+
     const python = process.env.GA_PYTHON || "python3";
     const entry = resolveGaEntry();
 

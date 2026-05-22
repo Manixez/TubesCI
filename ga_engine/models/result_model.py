@@ -18,6 +18,19 @@ class GuardSummary:
     total_shifts: int
     buildings: List[str]
     label: str
+    daily_assignments: List["GuardDailyAssignment"]
+
+
+@dataclass
+class GuardShiftAssignment:
+    shift: str
+    building: str
+
+
+@dataclass
+class GuardDailyAssignment:
+    day: str
+    shifts: List[GuardShiftAssignment]
 
 
 @dataclass
@@ -45,6 +58,16 @@ class ResultModel:
                     "totalShifts": summary.total_shifts,
                     "buildings": summary.buildings,
                     "label": summary.label,
+                    "dailyAssignments": [
+                        {
+                            "day": daily.day,
+                            "shifts": [
+                                {"shift": shift.shift, "building": shift.building}
+                                for shift in daily.shifts
+                            ],
+                        }
+                        for daily in summary.daily_assignments
+                    ],
                 }
                 for summary in self.guard_summary
             ],
@@ -53,6 +76,7 @@ class ResultModel:
             "metrics": {
                 "missingGuards": self.metrics.missing_guards,
                 "doubleShiftDays": self.metrics.double_shift_days,
+                "overlapShiftAssignments": self.metrics.overlap_shift_assignments,
                 "dayOffShortage": self.metrics.day_off_shortage,
                 "workloadStdev": self.metrics.workload_stdev,
                 "buildingRepeatExcess": self.metrics.building_repeat_excess,

@@ -71,6 +71,9 @@ export default function ResultPage() {
                             <div>Fitness score: {data.result.fitnessScore.toFixed(2)}</div>
                             <div>Kurang satpam/shift: {data.result.metrics.missingGuards}</div>
                             <div>Double shift/hari: {data.result.metrics.doubleShiftDays}</div>
+                            <div>
+                                Overlap shift/gedung: {data.result.metrics.overlapShiftAssignments ?? 0}
+                            </div>
                             <div>Kekurangan libur: {data.result.metrics.dayOffShortage}</div>
                             <div>Stdev beban: {data.result.metrics.workloadStdev.toFixed(2)}</div>
                         </div>

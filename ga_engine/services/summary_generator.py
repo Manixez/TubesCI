@@ -1,6 +1,10 @@
 from typing import List
 
-from ..models.result_model import GuardSummary
+from ..models.result_model import (
+    GuardDailyAssignment,
+    GuardShiftAssignment,
+    GuardSummary,
+)
 from ..models.schedule_model import ShiftProblem
 
 
@@ -20,6 +24,9 @@ def summarize_guards(
     guard_building_presence = [
         [False for _ in range(n_buildings)] for _ in range(n_guards)
     ]
+    guard_day_assignments: List[List[List[GuardShiftAssignment]]] = [
+        [[] for _ in range(n_days)] for _ in range(n_guards)
+    ]
 
     for day_idx in range(n_days):
         for building_idx in range(n_buildings):
@@ -27,6 +34,12 @@ def summarize_guards(
                 for guard_idx in schedule[day_idx][building_idx][shift_idx]:
                     guard_shift_presence[guard_idx][day_idx][shift_idx] = True
                     guard_building_presence[guard_idx][building_idx] = True
+                    guard_day_assignments[guard_idx][day_idx].append(
+                        GuardShiftAssignment(
+                            shift=problem.shifts[shift_idx],
+                            building=problem.buildings[building_idx],
+                        )
+                    )
 
     guard_shift_counts = [
         sum(
@@ -55,12 +68,22 @@ def summarize_guards(
             if guard_building_presence[guard_idx][b]
         ]
 
+        daily_assignments = [
+            GuardDailyAssignment(
+                day=problem.days[day_idx],
+                shifts=guard_day_assignments[guard_idx][day_idx],
+            )
+            for day_idx in range(n_days)
+            if guard_day_assignments[guard_idx][day_idx]
+        ]
+
         summaries.append(
             GuardSummary(
                 name=problem.guards[guard_idx],
                 total_shifts=guard_shift_counts[guard_idx],
                 buildings=buildings,
                 label=label,
+                daily_assignments=daily_assignments,
             )
         )
 

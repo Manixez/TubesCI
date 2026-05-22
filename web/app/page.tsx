@@ -165,6 +165,9 @@ export default function HomePage() {
                             <div>Fitness score: {result.fitnessScore.toFixed(2)}</div>
                             <div>Kurang satpam/shift: {result.metrics.missingGuards}</div>
                             <div>Double shift/hari: {result.metrics.doubleShiftDays}</div>
+                            <div>
+                                Overlap shift/gedung: {result.metrics.overlapShiftAssignments ?? 0}
+                            </div>
                             <div>Kekurangan libur: {result.metrics.dayOffShortage}</div>
                             <div>Stdev beban: {result.metrics.workloadStdev.toFixed(2)}</div>
                         </div>
